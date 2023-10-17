@@ -66,6 +66,22 @@ class XmlElement():
     def __init__(self):
         pass
 
+
+    def __repr__(self):
+        kws = [f"{k}={v}" if type(v) != list else f"len({k})={len(v)}" for k,v in self.__dict__.items()]
+        return f"{type(self).__name__}({', '.join(kws)})"
+    
+
+    def __str__(self):
+        if hasattr(self, "text"):
+            string = self.text
+        elif hasattr(self, "title"):
+            string = self.title
+        else:
+            string = self.__repr__()
+        return string
+        
+
     # 再起的にJSON的な構造にする
     def get_structure(self):
         structure = {}
@@ -147,7 +163,7 @@ class Sentence(XmlElement):
 
 class Column(XmlElement):
 
-    def __ini__(self, xml):
+    def __init__(self, xml, *args, **kwargs):
         super().__init__()
         # 列 (Column) は 番号 (Num) を持つ
         self.num = xml.attrib["Num"]
@@ -181,8 +197,13 @@ class ItemSentence(XmlElement):
         if columns:
             pass
             self.sentence = None
+            self.columns = list(map(lambda xml:Column(xml),columns))
         else:
             self.sentence = Sentence(xml.find("Sentence"))
+            self.columns = []
+
+    def __getitem__(self, ind):
+        return self.columns[ind]
 
     # 項目番号を渡す
     def display(self, title=None, *args, **kwargs):
@@ -202,7 +223,7 @@ class Item(XmlElement):
         # 項目 (Item) は題 (Title) を持つ
         self.title = xml.find("ItemTitle").text
         # 項目 (Item) は項目文(ItemSentence) を持つ
-        self.sentence = ItemSentence(xml.find("ItemSentence"))
+        self.item_sentence = ItemSentence(xml.find("ItemSentence"))
 
     # 項目番号を渡す
     def display(self, *args, **kwargs):
@@ -223,11 +244,20 @@ class Paragraph(XmlElement):
         else:
             self.disp_num = None
         # 段落 (Paragraph) は段落文 (ParaprahSentence) を持つ
-        self.sentence = ParagraphSentence(xml.find("ParagraphSentence"))
+        self.paragraph_sentence = ParagraphSentence(xml.find("ParagraphSentence"))
         # 段落 (Paragraph) は項目 (Item) を複数持つ場合がある
         items = xml.findall("Item")
         if items:
             self.items = list(map(lambda xml:Item(xml),items))
+        else:
+            self.items = []
+
+    def __getitem__(self, ind):
+        # if hasattr(self, "items"):
+        return self.items[ind]
+        # else:
+        #     return None
+
 
     # 段落番号を渡す
     def display(self, *args, **kwargs):
@@ -252,6 +282,9 @@ class Article(XmlElement):
         paragraphs = xml.findall("Paragraph")
         self.paragraphs = list(map(lambda xml:Paragraph(xml),paragraphs))
 
+    def __getitem__(self, ind):
+        return self.paragraphs[ind]
+
     # 見出しはレベル4、条題はレベル5の見出しで表示する
     def display(self, *args, **kwargs):
         if self.caption:
@@ -273,6 +306,9 @@ class Chapter(XmlElement):
         articles = xml.findall("Article")
         self.articles = list(map(lambda xml:Article(xml),articles))
 
+    def __getitem__(self, ind):
+        return self.articles[ind]
+
     # 章題を折りたたみで表示する
     def display(self, *args, **kwargs):
         # st.markdown(f"### {self.title}")
@@ -292,6 +328,8 @@ class MainProvision(XmlElement):
         else:
             self.omit_state_name = None
 
+    def __getitem__(self, ind):
+        return self.chapters[ind]
 
     def display(self, *args, **kwargs):
         self.display_child(omit_state_name=self.omit_state_name)
